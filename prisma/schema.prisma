@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// User model
+model User {
+  id                String             @id @default(uuid())
+  name              String
+  level             Int                @default(1)
+  xp                Int                @default(0)
+  streak            Int                @default(0)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  
+  // Relations
+  quizProgress      UserQuizProgress[]
+  achievements      UserAchievement[]
+
+  @@map("users")
+}
+
+// Quiz model
+model Quiz {
+  id                String             @id @default(uuid())
+  title             String
+  description       String             @db.Text
+  difficulty        String
+  category          String
+  imageUrl          String
+  numberOfQuestions Int
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  
+  // Relations
+  questions         Question[]
+  userProgress      UserQuizProgress[]
+
+  @@map("quizzes")
+}
+
+// Question model
+model Question {
+  id               String   @id @default(uuid())
+  quizId           String
+  quiz             Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  questionText     String   @db.Text
+  category         String
+  type             String
+  difficulty       String
+  correctAnswer    String
+  incorrectAnswers Json     // Stored as JSON array
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([quizId])
+  @@map("questions")
+}
+
+// UserQuizProgress model
+model UserQuizProgress {
+  id                     String    @id @default(uuid())
+  userId                 String
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizId                 String
+  quiz                   Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  progressPercentage     Int       @default(0)
+  completedQuestionsCount Int      @default(0)
+  completionStatus       Boolean   @default(false)
+  lastAttempted          DateTime  @default(now())
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@unique([userId, quizId])
+  @@index([userId, quizId])
+  @@map("user_quiz_progress")
+}
+
+// Achievement model
+model Achievement {
+  id          String           @id @default(uuid())
+  title       String
+  description String           @db.Text
+  iconType    String
+  xpReward    Int
+  createdAt   DateTime         @default(now())
+  
+  // Relations
+  users       UserAchievement[]
+
+  @@map("achievements")
+}
+
+// UserAchievement model (Many-to-Many)
+model UserAchievement {
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  dateEarned    DateTime    @default(now())
+
+  @@id([userId, achievementId])
+  @@index([userId])
+  @@index([achievementId])
+  @@map("user_achievements")
+}
